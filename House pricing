@@ -1,0 +1,61 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+
+df = pd.read_csv("housing_price_dataset.csv")
+print("Dataset Shape:", df.shape)
+print(df.head())
+
+print("\nInfo:")
+print(df.info())
+
+print("\nMissing Values:\n", df.isnull().sum())
+
+print("\nSummary Statistics:\n", df.describe())
+
+sns.histplot(df['Price'], kde=True)
+plt.title("Price Distribution")
+plt.show()
+
+sns.scatterplot(data=df, x='SquareFeet', y='Price')
+plt.title("Square Feet vs Price")
+plt.show()
+
+sns.boxplot(data=df, x='Neighborhood', y='Price')
+plt.title("Neighborhood vs Price")
+plt.show()
+
+# --- Outlier Detection ---
+import zscore 
+from scipy.stats 
+
+z_scores = np.abs(zscore(df[['SquareFeet', 'Bathrooms', 'Bedrooms', 'Price']]))
+outliers = (z_scores > 3).any(axis=1)
+print(f"Outliers detected: {outliers.sum()}")
+
+df_clean = df[~outliers].copy()
+print("Shape after outlier removal:", df_clean.shape)
+
+# Creating new features
+df_clean['Age'] = 2025 - df_clean['YearBuilt']
+df_clean.drop('YearBuilt', axis=1, inplace=True)
+
+categorical_features = ['Neighborhood']
+numerical_features = ['SquareFeet', 'Bedrooms', 'Bathrooms', 'Age']
+
+preprocessor = ColumnTransformer([
+    ('onehot', OneHotEncoder(drop='first'), categorical_features),
+    ('scale', StandardScaler(), numerical_features)
+], remainder='passthrough')
+
+X = df_clean.drop('Price', axis=1)
+y = df_clean['Price']
+
+X_processed = preprocessor.fit_transform(X)
+
+print("Feature matrix shape after encoding and scaling:", X_processed.shape)
+print("Target shape:", y.shape)
