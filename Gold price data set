@@ -1,1 +1,62 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns from sklearn.preprocessing
+
+df = pd.read_csv("gold.csv")
+print("Dataset shape:", df.shape)
+print("\nFirst rows:")
+print(df.head())
+
+print("\nInfo:")
+print(df.info())
+print("\nMissing values:\n", df.isnull().sum())
+
+df['Date'] = pd.to_datetime(df['Date'])
+df.set_index('Date', inplace=True) hi
+
+if 'Currency' in df.columns:
+    df.drop('Currency', axis=1, inplace=True)
+
+print("\nSummary Statistics:\n", df.describe())
+
+plt.figure(figsize=(12, 4))
+plt.plot(df.index, df['Close'], label='Close Price')
+plt.title("Gold Close Prices Over Time")
+plt.xlabel("Date")
+plt.ylabel("USD")
+plt.legend()
+plt.show()
+
+# --- Heatmap for correlation ---
+plt.figure(figsize=(8, 6))
+sns.heatmap(df.corr(), annot=True, cmap="coolwarm")
+plt.title("Correlation Matrix")
+plt.show()
+
+import zscore from scipy.stats
+z_scores = np.abs(zscore(df.select_dtypes(include=np.number)))
+outliers = (z_scores > 3).sum()
+print("\nNumber of outliers per column:\n", pd.Series(outliers, index=df.select_dtypes(include=np.number).columns))
+
+# --- Remove outliers 
+
+df_clean = df[(z_scores < 3).all(axis=1)]
+print("\nShape after outlier removal:", df_clean.shape)
+
+# Rolling averages
+df_clean['Rolling_7'] = df_clean['Close'].rolling(window=7).mean()
+df_clean['Rolling_30'] = df_clean['Close'].rolling(window=30).mean()
+
+#  Price volatility (High - Low)
+df_clean['Volatility'] = df_clean['High'] - df_clean['Low']
+
+#  Daily return
+df_clean['Daily_Return'] = df_clean['Close'].pct_change()
+
+final_df = df_clean.copy()
+print("\nFinal columns available for modeling:\n", final_df.columns)
+
+
+
 
