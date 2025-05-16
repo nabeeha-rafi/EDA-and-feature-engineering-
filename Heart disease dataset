@@ -1,0 +1,64 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns from sklearn.preprocessing 
+import StandardScaler, OneHotEncoder
+from sklearn.compose 
+import ColumnTransformer
+from sklearn.pipeline 
+import Pipeline from sklearn.decomposition 
+import PCA
+
+df = pd.read_csv("heart.csv")
+print("Shape:", df.shape)
+print("\nInfo:")
+print(df.info())
+print("\nSummary Stats:")
+print(df.describe())
+
+print("\nMissing values:\n", df.isnull().sum())
+cat_cols = ['Sex', 'ChestPainType', 'RestingECG', 'ExerciseAngina', 'ST_Slope']
+for col in cat_cols:
+    print(f"{col} unique values: {df[col].unique()}")
+
+def remove_outliers(df, cols):
+    for col in cols:
+        upper_limit = df[col].mean() + 3*df[col].std()
+        df = df[df[col] <= upper_limit]
+    return df
+
+numeric_cols = ['Cholesterol', 'Oldpeak', 'RestingBP']
+df = remove_outliers(df, numeric_cols)
+print("\nShape after outlier removal:", df.shape)
+
+sns.countplot(data=df, x='HeartDisease')
+plt.title("Heart Disease Distribution")
+plt.show()
+
+sns.boxplot(data=df, x='HeartDisease', y='Age')
+plt.title("Age vs Heart Disease")
+plt.show()
+
+sns.heatmap(df.corr(numeric_only=True), annot=True, cmap='coolwarm')
+plt.title("Correlation Matrix")
+plt.show()
+
+# Encoding categorical variables
+binary_map = {'M': 1, 'F': 0, 'Y': 1, 'N': 0}
+df['Sex'] = df['Sex'].map(binary_map)
+df['ExerciseAngina'] = df['ExerciseAngina'].map(binary_map)
+
+# Define features and target
+X = df.drop('HeartDisease', axis=1)
+y = df['HeartDisease']
+
+# Columns for encoding and scaling
+categorical_features = ['ChestPainType', 'RestingECG', 'ST_Slope']
+numerical_features = ['Age', 'RestingBP', 'Cholesterol', 'MaxHR', 'Oldpeak']
+
+preprocessor = ColumnTransformer([
+    ('onehot', OneHotEncoder(drop='first'), categorical_features),
+    ('scale', StandardScaler(), numerical_features)
+], remainder='passthrough')
+
+X_processed = preprocessor.fit_transform(X)
