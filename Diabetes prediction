@@ -1,0 +1,99 @@
+# Import libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.model_selection import train_test_split
+from sklearn.feature_selection import SelectKBest, f_classif
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.impute import SimpleImputer
+
+# Load the dataset
+df = pd.read_csv('/kaggle/input/pima-indians-diabetes/pima-indians-diabetes.csv')  
+df.columns = [
+    "Pregnancies", "Glucose", "BloodPressure", "SkinThickness", 
+    "Insulin", "BMI", "DiabetesPedigreeFunction", "Age", "Outcome"
+]
+
+#  1. EDA (Exploratory Data Analysis) 
+print("\n Dataset Info ")
+df.info()
+
+print("\n Missing Values")
+missing = df.isnull().sum()
+print(missing)
+
+print("\nBasic Statistics")
+print(df.describe().T)  
+
+# Check Outcome distribution
+print("\n Outcome Distribution ")
+print(df['Outcome'].value_counts())
+sns.countplot(data=df, x='Outcome')
+plt.title("Distribution of Diabetes Outcome (0: No, 1: Yes)")
+plt.show()
+
+# Numerical Features Analysis
+numeric_features = df.drop("Outcome", axis=1).columns
+fig, axes = plt.subplots(4, 2, figsize=(15, 12))
+for i, feature in enumerate(numeric_features):
+    row, col = i // 2, i % 2
+    sns.histplot(df[feature], kde=True, ax=axes[row, col], color='skyblue')
+    axes[row, col].set_title(f'Distribution of {feature}')
+plt.tight_layout()
+plt.show()
+
+# Correlation Heatmap
+plt.figure(figsize=(10, 8))
+sns.heatmap(df.corr(), annot=True, cmap="coolwarm", center=0)
+plt.title("Correlation Matrix")
+plt.show()
+
+# Outlier Detection
+plt.figure(figsize=(12, 6))
+sns.boxplot(data=df[numeric_features])
+plt.title("Boxplot of Numerical Features (Outliers Detection)")
+plt.xticks(rotation=45)
+plt.show()
+
+# Handling Missing Values 
+imputer = SimpleImputer(strategy='median')  
+df_cleaned = pd.DataFrame(imputer.fit_transform(df), columns=df.columns)
+
+#  If feature had zeros, replace with median
+mask_zero = (df[['Glucose', 'BloodPressure', 'SkinThickness', 'Insulin', 'BMI']] == 0)
+df_cleaned.replace(0, df_cleaned.median(), inplace=True)
+
+#  2. Feature Engineering 
+# Scaling Numerical Features
+scaler = StandardScaler()
+X_scaled = pd.DataFrame(scaler.fit_transform(df_cleaned.drop("Outcome", axis=1)), columns=numeric_features)
+y = df_cleaned['Outcome']
+
+# Feature Selection 
+selector = SelectKBest(score_func=f_classif, k=5)
+X_selected = selector.fit_transform(X_scaled, y)
+selected_features = X_scaled.columns[selector.get_support()]
+print("\n=== Top Features ===")
+print(selected_features)
+
+# Train-Test Split
+X_train, X_test, y_train, y_test = train_test_split(
+    X_scaled, y, test_size=0.2, random_state=42, stratify=y
+)
+
+print("\nTraining Set Shape")
+print(X_train.shape, y_train.shape)
+
+#  3. Model to Check Feature Importance
+model = RandomForestClassifier(random_state=42)
+model.fit(X_train, y_train)
+
+plt.figure(figsize=(10, 6))
+sns.barplot(x=model.feature_importances_, y=numeric_features)
+plt.title("Random Forest Feature Importance")
+plt.show()
+
+print("\n EDA & Feature Engineering Complete")
