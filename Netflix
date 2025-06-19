@@ -2,69 +2,74 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.model_selection import train_test_split
-from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.compose import ColumnTransformer
 
-# Load the dataset
-df = pd.read_csv('/kaggle/input/netflix-engagement-report-2023jan-jun/Netflix_Engagement_Report_2023_Jan-Jun_cleaned.csv')
+# Load dataset
+df = pd.read_csv("Netflix_Engagement_Report_2023_Jan-Jun_cleaned.csv")
+print("Dataset Shape:", df.shape)
+print(df.head())
 
-# Display dataset information
-print("\n Dataset Info")
-df.info()
+print("\nInfo:")
+print(df.info())
 
-# Check for missing values
-print("\nMissing Values")
-missing_values = df.isnull().sum()
-print(missing_values[missing_values > 0])
+print("\nMissing Values:\n", df.isnull().sum())
 
-# Basic statistics of the dataset
-print("\n Basic Statistics")
-print(df.describe())
+print("\nSummary Statistics:\n", df.describe())
 
-# Univariate Analysis
-numeric_features = df.select_dtypes(include=[np.number]).columns.tolist()
-plt.figure(figsize=(15, 10))
-for i, feature in enumerate(numeric_features):
-    plt.subplot(3, 2, i + 1)
-    sns.histplot(df[feature], kde=True, color='skyblue')
-    plt.title(f'Distribution of {feature}')
-plt.tight_layout()
+#  Univariate Analysis
+sns.histplot(df['Hours Viewed'], kde=True)
+plt.title("Distribution of Hours Viewed")
 plt.show()
 
 # Bivariate Analysis
-plt.figure(figsize=(10, 8))
-sns.heatmap(df.corr(), annot=True, cmap='coolwarm', center=0)
-plt.title("Correlation Matrix")
+sns.boxplot(data=df, x='Available Globally', y='Hours Viewed')
+plt.title("Availability vs Hours Viewed")
 plt.show()
 
-# Check for categorical features
-categorical_features = df.select_dtypes(include=[object]).columns.tolist()
-print("\n=== Categorical Features ===")
-print(categorical_features)
+# Convert Release Date to datetime
+df['Release Date'] = pd.to_datetime(df['Release Date'], errors='coerce')
 
-# Univariate Analysis: Count plots for categorical features
-plt.figure(figsize=(15, 5))
-for i, feature in enumerate(categorical_features):
-    plt.subplot(2, 3, i + 1)
-    sns.countplot(data=df, x=feature, palette='Set2')
-    plt.title(f'Distribution of {feature}')
-plt.tight_layout()
+# Extract year and month
+df['Release Year'] = df['Release Date'].dt.year
+df['Release Month'] = df['Release Date'].dt.month
+
+sns.scatterplot(data=df, x='Release Year', y='Hours Viewed')
+plt.title("Release Year vs Hours Viewed")
 plt.show()
 
-# Handling Missing Values
-imputer = SimpleImputer(strategy='median')
-df[numeric_features] = imputer.fit_transform(df[numeric_features])
+#  Outlier Detection
 
-# Feature Engineering: Encoding categorical variables
-df_encoded = pd.get_dummies(df, columns=categorical_features, drop_first=True)
+from scipy.stats import zscore
 
-# Feature Scaling: Standardizing numerical features
-scaler = StandardScaler()
-df_encoded[numeric_features] = scaler.fit_transform(df_encoded[numeric_features])
+z_scores = np.abs(zscore(df[['Hours Viewed']].fillna(0)))
+outliers = (z_scores > 3).any(axis=1)
+print(f"Outliers detected: {outliers.sum()}")
 
-# Splitting the dataset into features and target variable
-X = df_encoded.drop('Hours Viewed', axis=1)  
-y = df_encoded['Hours Viewed']
+df_clean = df[~outliers].copy()
+print("Shape after outlier removal:", df_clean.shape
 
-print("\n EDA and Feature Engineering Complete")
+#  Feature Engineering
+
+df_clean['Is Recent'] = df_clean['Release Year'] >= 2020
+
+# Drop original date column
+df_clean.drop(columns=['Release Date'], inplace=true)
+
+#  Encoding & Scaling
+
+categorical_features = ['Available Globally', 'Is Recent']
+numerical_features = ['Hours Viewed']
+
+preprocessor = ColumnTransformer([
+    ('onehot', OneHotEncoder(drop='first'), categorical_features),
+    ('scale', StandardScaler(), numerical_features)
+], remainder='drop')
+
+X = df_clean.drop(['Title'], axis=1)  # Title isn't useful for modeling
+X_processed = preprocessor.fit_transform(X)
+
+print("Feature matrix shape after encoding and scaling:", X_processed.shape)
+
+
+
