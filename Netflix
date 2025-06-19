@@ -1,0 +1,70 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.model_selection import train_test_split
+from sklearn.impute import SimpleImputer
+
+# Load the dataset
+df = pd.read_csv('/kaggle/input/netflix-engagement-report-2023jan-jun/Netflix_Engagement_Report_2023_Jan-Jun_cleaned.csv')
+
+# Display dataset information
+print("\n Dataset Info")
+df.info()
+
+# Check for missing values
+print("\nMissing Values")
+missing_values = df.isnull().sum()
+print(missing_values[missing_values > 0])
+
+# Basic statistics of the dataset
+print("\n Basic Statistics")
+print(df.describe())
+
+# Univariate Analysis
+numeric_features = df.select_dtypes(include=[np.number]).columns.tolist()
+plt.figure(figsize=(15, 10))
+for i, feature in enumerate(numeric_features):
+    plt.subplot(3, 2, i + 1)
+    sns.histplot(df[feature], kde=True, color='skyblue')
+    plt.title(f'Distribution of {feature}')
+plt.tight_layout()
+plt.show()
+
+# Bivariate Analysis
+plt.figure(figsize=(10, 8))
+sns.heatmap(df.corr(), annot=True, cmap='coolwarm', center=0)
+plt.title("Correlation Matrix")
+plt.show()
+
+# Check for categorical features
+categorical_features = df.select_dtypes(include=[object]).columns.tolist()
+print("\n=== Categorical Features ===")
+print(categorical_features)
+
+# Univariate Analysis: Count plots for categorical features
+plt.figure(figsize=(15, 5))
+for i, feature in enumerate(categorical_features):
+    plt.subplot(2, 3, i + 1)
+    sns.countplot(data=df, x=feature, palette='Set2')
+    plt.title(f'Distribution of {feature}')
+plt.tight_layout()
+plt.show()
+
+# Handling Missing Values
+imputer = SimpleImputer(strategy='median')
+df[numeric_features] = imputer.fit_transform(df[numeric_features])
+
+# Feature Engineering: Encoding categorical variables
+df_encoded = pd.get_dummies(df, columns=categorical_features, drop_first=True)
+
+# Feature Scaling: Standardizing numerical features
+scaler = StandardScaler()
+df_encoded[numeric_features] = scaler.fit_transform(df_encoded[numeric_features])
+
+# Splitting the dataset into features and target variable
+X = df_encoded.drop('Hours Viewed', axis=1)  
+y = df_encoded['Hours Viewed']
+
+print("\n EDA and Feature Engineering Complete")
