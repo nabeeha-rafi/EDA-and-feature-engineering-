@@ -1,0 +1,87 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.compose import ColumnTransformer
+from scipy.stats import zscore
+
+# Load data
+df = pd.read_csv("appstore_games.csv")
+print("Dataset Shape:", df.shape)
+print(df.head())
+
+print("\nInfo:")
+print(df.info())
+
+print("\nMissing Values:\n", df.isnull().sum())
+
+print("\nSummary Statistics:\n", df[['Average User Rating', 'User Rating Count', 'Price', 'Size']].describe())
+
+# Drop rows with missing critical numeric values
+df = df.dropna(subset=['Average User Rating', 'User Rating Count', 'Price', 'Size'])
+
+
+#  Univariate Analysis
+sns.histplot(df['Average User Rating'], kde=True)
+plt.title("User Rating Distribution")
+plt.show()
+
+sns.histplot(df['Price'], kde=True)
+plt.title("Price Distribution")
+plt.show()
+
+
+# Bivariate Analysis
+sns.scatterplot(data=df, x='Price', y='Average User Rating')
+plt.title("Price vs Average User Rating")
+plt.show()
+
+sns.boxplot(data=df, x='Primary Genre', y='Average User Rating')
+plt.xticks(rotation=45)
+plt.title("Genre vs Rating")
+plt.show()
+
+
+# Multivariate Analysis
+plt.figure(figsize=(10, 6))
+sns.heatmap(df[['Average User Rating', 'User Rating Count', 'Price', 'Size']].corr(), annot=True, cmap="coolwarm")
+plt.title("Correlation Heatmap")
+plt.show()
+
+
+#  Outlier Detection
+z_scores = np.abs(zscore(df[['User Rating Count', 'Price', 'Size']]))
+outliers = (z_scores > 3).any(axis=1)
+print(f"Outliers detected: {outliers.sum()}")
+
+df_clean = df[~outliers].copy()
+print("Shape after outlier removal:", df_clean.shape)
+
+
+# Feature Engineering
+
+# Convert release date to datetime and create new features
+df_clean['Original Release Date'] = pd.to_datetime(df_clean['Original Release Date'], errors='coerce')
+df_clean['Release Year'] = df_clean['Original Release Date'].dt.year
+df_clean['Is Recent'] = df_clean['Release Year'] >= 2020
+
+# Drop columns not needed
+df_clean.drop(columns=['URL', 'ID', 'Subtitle', 'Icon URL', 'Description', 
+                       'Languages', 'Genres', 'Developer', 'Current Version Release Date', 
+                       'Original Release Date'], inplace=True)
+
+
+#  Encoding + Scaling
+categorical_features = ['Primary Genre', 'Age Rating', 'Is Recent']
+numerical_features = ['Average User Rating', 'User Rating Count', 'Price', 'Size']
+
+preprocessor = ColumnTransformer([
+    ('onehot', OneHotEncoder(drop='first'), categorical_features),
+    ('scale', StandardScaler(), numerical_features)
+], remainder='drop')
+
+X = df_clean.drop('Name', axis=1)
+X_processed = preprocessor.fit_transform(X)
+
+print("Feature after encoding and scaling:", X_processed.shape)
